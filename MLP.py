@@ -7,6 +7,7 @@ from sklearn.metrics import f1_score
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.calibration import calibration_curve
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -19,7 +20,6 @@ import matplotlib.pyplot as plt
 import random
 import Preprocessing
 
-#Briar score +calibration curve related to the said + print
 
 class Net(nn.Module):
     def __init__(self):
@@ -439,4 +439,85 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         run_intervention(model, X_group, int_B_seg,
                         f"{group_label} - Intervention B (25% limit increase)")
 
+    
+    ### Calibration Curve
 
+    prob_true, prob_pred = calibration_curve(y_test, y_test_prob, n_bins=10)
+
+    plt.figure(figsize=(6, 5))
+    plt.plot(prob_pred, prob_true, marker='o', label='XGBoost')
+    plt.plot([0, 1], [0, 1], linestyle='--', color='gray', label='Perfectly calibrated')
+    plt.xlabel('Mean Predicted Probability')
+    plt.ylabel('Fraction of Positives')
+    plt.title('Calibration Curve -- XGBoost')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig('XGB_calibration_curve.png', dpi=150)
+    plt.show()
+
+    print(f"Brier Score: {brier_score_loss(y_test, y_test_prob):.4f}")
+
+    # %%
+    ### Feature Importance (Gain-Based)
+
+    # %%
+
+    importance_df = pd.DataFrame({
+        'Feature'   : X_train.columns,
+        'Importance': best_model.feature_importances_
+    }).sort_values('Importance', ascending=False)
+
+    print("\nTop 20 Features:")
+    print(importance_df.head(20))
+
+    top20 = importance_df.head(20).sort_values('Importance', ascending=True)
+
+    plt.figure(figsize=(10, 8))
+    plt.barh(top20['Feature'], top20['Importance'])
+    plt.title('Top 20 XGBoost Feature Importances (Gain)')
+    plt.xlabel('Importance')
+    plt.tight_layout()
+    plt.savefig('XGB_feature_importance.png', dpi=150)
+    plt.show()
+
+    ### SHAP Feature Importance
+
+    explainer        = shap.TreeExplainer(best_model)
+    X_sample         = X_test.sample(500, random_state=42)
+    shap_values      = explainer.shap_values(X_sample)
+
+    shap_explanation = shap.Explanation(
+        values        = shap_values,
+        base_values   = np.full(len(X_sample), explainer.expected_value),
+        data          = X_sample.values,
+        feature_names = X_sample.columns.tolist()
+    )
+
+    shap.plots.bar(shap_explanation,      max_display=20, show=True)
+    shap.plots.beeswarm(shap_explanation, max_display=20, show=True)
+
+    # %%
+    ### Results Summary
+
+    # %%
+
+    print("SUMMARY OF RESULTS\n")
+
+    print(f"Best cross-validated F1 from randomized search: {search.best_score_:.4f}")
+    print(f"Best validation threshold based on F1        : {best_thresh:.4f}\n")
+
+    print("Before threshold tuning (default threshold = 0.50):")
+    print(f"  Test AUC       : {roc_auc_score(y_test, y_test_prob):.4f}")
+    print(f"  Test Accuracy  : {accuracy_score(y_test, y_test_pred):.4f}")
+    print(f"  Test Precision : {precision_score(y_test, y_test_pred):.4f}")
+    print(f"  Test Recall    : {recall_score(y_test, y_test_pred):.4f}")
+    print(f"  Test F1        : {f1_score(y_test, y_test_pred):.4f}\n")
+
+    print(f"After threshold tuning (threshold = {best_thresh:.4f}):")
+    print(f"  Test AUC       : {roc_auc_score(y_test, y_test_prob):.4f}")
+    print(f"  Test Accuracy  : {accuracy_score(y_test, y_test_pred_opt):.4f}")
+    print(f"  Test Precision : {precision_score(y_test, y_test_pred_opt):.4f}")
+    print(f"  Test Recall    : {recall_score(y_test, y_test_pred_opt):.4f}")
+    print(f"  Test F1        : {f1_score(y_test, y_test_pred_opt):.4f}")
+    print(f"  Brier Score    : {brier_score_loss(y_test, y_test_prob):.4f}")
