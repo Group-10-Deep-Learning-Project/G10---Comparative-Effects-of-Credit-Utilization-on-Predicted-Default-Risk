@@ -24,6 +24,32 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     X_val, y_val, X_train, y_train, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
 
+    # Coerce y to numpy 1D arrays and X to pandas DataFrames (handle torch tensors)
+    import numpy as _np
+    import pandas as _pd
+    try:
+        y_train = _np.array(y_train).ravel()
+        y_test  = _np.array(y_test).ravel()
+        y_val   = _np.array(y_val).ravel()
+    except Exception:
+        y_train = _np.asarray(y_train).ravel()
+        y_test  = _np.asarray(y_test).ravel()
+        y_val   = _np.asarray(y_val).ravel()
+
+    def _to_df(X):
+        if hasattr(X, 'columns'):
+            return X
+        try:
+            X_arr = _np.array(X)
+        except Exception:
+            X_arr = X
+        cols = [f"Feature_{i}" for i in range(X_arr.shape[1])]
+        return _pd.DataFrame(X_arr, columns=cols)
+
+    X_train = _to_df(X_train)
+    X_test  = _to_df(X_test)
+    X_val   = _to_df(X_val)
+
     param_grid = {
         'n_estimators'    : [200, 300, 500],
         'max_depth'       : [10, 20, 30, None],
@@ -343,5 +369,8 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     plt.tight_layout()
     plt.savefig('RF_segmentation_bar.png', dpi=150)
     plt.show()
+
+    # Return the trained model and DataFrames for downstream analysis
+    return rf_model, X_train, X_test, y_train, y_test
 
 

@@ -439,7 +439,9 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         run_intervention(model, X_group, int_B_seg,
                         f"{group_label} - Intervention B (25% limit increase)")
 
-    
+    # Return trained PyTorch model and tensors for external use (counterfactual without retraining)
+    return model, x_train, x_test, y_train, y_test
+
     ### Calibration Curve
 
     prob_true, prob_pred = calibration_curve(y_test, y_test_prob, n_bins=10)

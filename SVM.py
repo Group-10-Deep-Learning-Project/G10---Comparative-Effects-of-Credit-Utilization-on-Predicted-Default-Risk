@@ -104,3 +104,15 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         "brier"          : brier_score_loss(y_test, y_test_prob),
         "best_threshold" : best_threshold
     }
+
+    # Add return of estimator and dataframes for counterfactual usage
+    import pandas as _pd
+    try:
+        X_train_df = _pd.DataFrame(X_train)
+        X_test_df = _pd.DataFrame(X_test)
+    except Exception:
+        X_train_df = X_train
+        X_test_df = X_test
+
+    # Return best_svm for reuse (estimator, X_train_df, X_test_df, y_train, y_test)
+    return best_svm, X_train_df, X_test_df, y_train, y_test

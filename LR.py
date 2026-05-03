@@ -142,4 +142,9 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     shap.plots.bar(shap_explanation,      max_display=20, show=True)
     shap.plots.beeswarm(shap_explanation, max_display=20, show=True)
 
+    # Return the trained model and DataFrames for downstream analysis
+    X_train_df = pd.DataFrame(X_train, columns=feature_names)
+    X_test_df  = pd.DataFrame(X_test,  columns=feature_names)
+    return log_model, X_train_df, X_test_df, y_train, y_test
+
 
