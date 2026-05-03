@@ -14,6 +14,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 
 from sklearn.model_selection import train_test_split, StratifiedKFold, RandomizedSearchCV
 from sklearn.metrics import (
@@ -32,12 +33,41 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     X_val, y_val, X_train, y_train, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
 
+    # Ensure y vectors are numpy 1D arrays (handle torch tensors returned by preprocessing)
+    import numpy as _np
+    try:
+        y_train = _np.array(y_train).ravel()
+        y_test  = _np.array(y_test).ravel()
+        y_val   = _np.array(y_val).ravel()
+    except Exception:
+        y_train = _np.asarray(y_train).ravel()
+        y_test  = _np.asarray(y_test).ravel()
+        y_val   = _np.asarray(y_val).ravel()
+
+    # Ensure X inputs are DataFrames so later code using .columns/.sample works
+    import pandas as _pd
+    def _to_df(X):
+        if hasattr(X, 'columns'):
+            return X
+        try:
+            X_arr = _np.array(X)
+        except Exception:
+            X_arr = X
+        cols = [f"Feature_{i}" for i in range(X_arr.shape[1])]
+        return _pd.DataFrame(X_arr, columns=cols)
+
+    X_train = _to_df(X_train)
+    X_test  = _to_df(X_test)
+    X_val   = _to_df(X_val)
+
     neg = (y_train == 0).sum()
     pos = (y_train == 1).sum()
-    scale_pos_weight = neg / pos
+    # convert to native Python floats/ints so round() works
+    neg = int(neg)
+    pos = int(pos)
+    scale_pos_weight = neg / max(1, pos)
 
     print("scale_pos_weight:", round(scale_pos_weight, 3))
-
 
 
     xgb = XGBClassifier(
@@ -234,5 +264,8 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     print(f"  Test Recall    : {recall_score(y_test, y_test_pred_opt):.4f}")
     print(f"  Test F1        : {f1_score(y_test, y_test_pred_opt):.4f}")
     print(f"  Brier Score    : {brier_score_loss(y_test, y_test_prob):.4f}")
+
+    # Return the trained model and dataframes for downstream analysis
+    return best_model, X_train, X_test, y_train, y_test
 
 
