@@ -24,6 +24,10 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     X_val, y_val, X_train, y_train, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
 
+    y_train = np.array(y_train).ravel()
+
+    y_test  = np.array(y_test).ravel()
+
 
     # Logistic Regression Baseline
     # Kept simple intentionally, this is the baseline, not a tuned model
@@ -117,15 +121,12 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     # %%
     # SHAP Feature Importance
-
-    X_train_df = pd.DataFrame(
-        X_train,
-        columns=X_train.columns
-    )
-    X_test_df = pd.DataFrame(
-        X_test,
-        columns=X_test.columns
-    )
+    if hasattr(X_train, "columns"):
+        feature_names = X_train.columns.tolist()
+    else:
+        feature_names = [f"feature_{i}" for i in range(X_train.shape[1])]
+    X_train_df = pd.DataFrame(X_train, columns=feature_names)
+    X_test_df = pd.DataFrame(X_test, columns=feature_names)
 
     explainer   = shap.LinearExplainer(log_model, X_train_df)
     X_sample    = X_test_df.sample(500, random_state=42)

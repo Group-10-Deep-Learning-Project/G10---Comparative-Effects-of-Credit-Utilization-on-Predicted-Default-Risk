@@ -42,10 +42,10 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
                     brier, best_threshold
     """
 
-    X_val, y_val, X_tr, y_tr, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
+    X_val, y_val, X_train, y_train, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
 
     # ── Flatten y in case runner passes column vectors ───────
-    y_train = np.array(y_tr).ravel()
+    y_train = np.array(y_train).ravel()
     y_test  = np.array(y_test).ravel()
 
     # ── Hyperparameter tuning on train split ─────────────────
@@ -68,14 +68,14 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         n_jobs              = -1
     )
 
-    random_search.fit(X_tr_sc, y_tr)
+    random_search.fit(X_train, y_train)
     best_svm = random_search.best_estimator_
 
     print(f"[SVM] Best params : {random_search.best_params_}")
     print(f"[SVM] Best CV F1  : {random_search.best_score_:.4f}")
 
     # ── Threshold tuning on validation set ───────────────────
-    y_val_prob = best_svm.predict_proba(X_val_sc)[:, 1]
+    y_val_prob = best_svm.predict_proba(X_val)[:, 1]
 
     precisions, recalls, thresholds = precision_recall_curve(y_val, y_val_prob)
     f1_curve        = 2 * (precisions * recalls) / (precisions + recalls + 1e-8)
@@ -86,7 +86,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
           f"| Val F1: {f1_curve[best_thresh_idx]:.4f}")
 
     # ── Refit on full train set with best params ─────────────
-    best_svm.fit(X_train_sc, y_train)
+    best_svm.fit(X_train, y_train)
 
     # ── Final evaluation on test set ─────────────────────────
     y_test_prob = best_svm.predict_proba(X_test)[:, 1]
