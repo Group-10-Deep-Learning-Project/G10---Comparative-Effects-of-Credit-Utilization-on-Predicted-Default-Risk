@@ -64,7 +64,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         scoring             = 'f1',
         cv                  = 5,
         verbose             = 1,
-        random_state        = 42,
+        random_state        = seed,
         n_jobs              = -1
     )
 
