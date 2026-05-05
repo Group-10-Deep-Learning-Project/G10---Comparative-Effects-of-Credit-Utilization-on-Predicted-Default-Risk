@@ -130,7 +130,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     X_test_df = pd.DataFrame(X_test, columns=feature_names)
 
     explainer   = shap.LinearExplainer(log_model, X_train_df)
-    X_sample    = X_test_df.sample(500, random_state=42)
+    X_sample    = X_test_df.sample(500, random_state=seed)
     shap_values = explainer.shap_values(X_sample)
 
     shap_explanation = shap.Explanation(
