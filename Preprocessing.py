@@ -12,6 +12,7 @@ def valuesWithSeed(seed):
     
     #Seed setting
     random.seed(seed)
+    np.random.seed(seed)
 
     ##Read in DataFrame
     df = pd.read_excel('Working Version - default of credit card clients.xls',header=1)
