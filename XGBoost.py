@@ -74,7 +74,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     xgb = XGBClassifier(
         objective='binary:logistic',
         eval_metric='auc',
-        random_state=99,
+        random_state= seed,
         n_jobs=-1,
         tree_method='hist',
         scale_pos_weight=scale_pos_weight
