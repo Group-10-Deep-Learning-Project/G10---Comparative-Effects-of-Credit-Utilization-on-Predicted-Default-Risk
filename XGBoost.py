@@ -30,6 +30,7 @@ import shap
 def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     
     random.seed(seed)
+    np.random.seed(seed)
 
     X_val, y_val, X_train, y_train, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
 
@@ -93,7 +94,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         'reg_lambda'      : [1, 2, 5]
     }
 
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=28)
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
 
     search = RandomizedSearchCV(
         estimator           = xgb,
@@ -102,7 +103,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         scoring             = 'f1',
         cv                  = cv,
         verbose             = 1,
-        random_state        = 99,
+        random_state        = seed,
         n_jobs              = -1
     )
 
@@ -227,7 +228,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     # %%
 
     explainer        = shap.TreeExplainer(best_model)
-    X_sample         = X_test.sample(500, random_state=42)
+    X_sample         = X_test.sample(500, random_state=seed)
     shap_values      = explainer.shap_values(X_sample)
 
     shap_explanation = shap.Explanation(
