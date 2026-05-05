@@ -487,7 +487,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     ### SHAP Feature Importance
 
     explainer        = shap.TreeExplainer(best_model)
-    X_sample         = X_test.sample(500, random_state=42)
+    X_sample         = X_test.sample(500, random_state=seed)
     shap_values      = explainer.shap_values(X_sample)
 
     shap_explanation = shap.Explanation(
