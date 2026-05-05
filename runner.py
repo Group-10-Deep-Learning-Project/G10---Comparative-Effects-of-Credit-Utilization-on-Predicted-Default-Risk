@@ -7,7 +7,7 @@ import Preprocessing
 import counterfactual
 
 #Set seeds for testing
-seeds = [42]
+seeds = [42,123,456]
 
 # Collect trained models/data for CF
 models_results = []
