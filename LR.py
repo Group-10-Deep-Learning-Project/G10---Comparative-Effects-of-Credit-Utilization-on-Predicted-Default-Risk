@@ -21,6 +21,7 @@ import random
 def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     
     random.seed(seed)
+    np.random.seed(seed)
 
     X_val, y_val, X_train, y_train, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
 
@@ -38,7 +39,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         class_weight = 'balanced',
         solver       = 'lbfgs',
         max_iter     = 1000,
-        random_state = 42
+        random_state = seed
     )
 
     log_model.fit(X_train, y_train)
