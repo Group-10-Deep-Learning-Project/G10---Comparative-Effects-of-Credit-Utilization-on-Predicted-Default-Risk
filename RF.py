@@ -21,6 +21,7 @@ import random
 def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     
     random.seed(seed)
+    np.random.seed(seed)
 
     X_val, y_val, X_train, y_train, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
 
@@ -102,7 +103,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         'class_weight'    : ['balanced', {0: 1, 1: 3}]
     }
 
-    rf_base = RandomForestClassifier(random_state=42, n_jobs=-1)
+    rf_base = RandomForestClassifier(random_state=seed, n_jobs=-1)
 
     # Use exhaustive GridSearchCV for hyperparameter tuning (original behavior)
     grid_search = GridSearchCV(
@@ -211,7 +212,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     # SHAP Feature Importance
 
     explainer = shap.TreeExplainer(rf_model)
-    X_sample  = X_test.sample(500, random_state=42)
+    X_sample  = X_test.sample(500, random_state=seed)
 
     shap_explanation = explainer(X_sample)
 
