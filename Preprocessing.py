@@ -43,9 +43,9 @@ def valuesWithSeed(seed):
     X_combined = np.hstack([X, XC])
 
     #Test Train Split
-    x_trainv, x_test, y_trainv, y_test = train_test_split(X_combined, Y, test_size=0.1,stratify=Y, random_state = 28)
+    x_trainv, x_test, y_trainv, y_test = train_test_split(X_combined, Y, test_size=0.1,stratify=Y, random_state = seed)
 
-    x_train, x_v, y_train, y_v = train_test_split(x_trainv, y_trainv, test_size=0.222, stratify=y_trainv, random_state = 28)
+    x_train, x_v, y_train, y_v = train_test_split(x_trainv, y_trainv, test_size=0.222, stratify=y_trainv, random_state = seed)
 
     x_v = torch.tensor(x_v,dtype=torch.float32)
     y_v = torch.tensor(y_v,dtype=torch.float32).view(-1, 1)
