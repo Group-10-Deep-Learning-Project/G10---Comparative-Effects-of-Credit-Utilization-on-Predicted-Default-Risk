@@ -50,6 +50,49 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     X_test  = _to_df(X_test)
     X_val   = _to_df(X_val)
 
+    # Heuristic feature mapping for counterfactuals
+    # Try to detect real column names (e.g., 'BILL_AMT1'..'BILL_AMT6', 'LIMIT_BAL', 'UTIL_avg')
+    cols = X_train.columns.tolist()
+    n_features = len(cols)
+
+    # Attempt to detect by keyword matches
+    detected_bill = [c for c in cols if any(k in c.upper() for k in ['BILL', 'BILL_AMT', 'BILLAMT', 'AMT'])]
+    detected_limit = next((c for c in cols if any(k in c.upper() for k in ['LIMIT', 'LIMIT_BAL', 'CREDIT_LIMIT'])), None)
+    detected_util = [c for c in cols if 'UTIL' in c.upper() or 'UTILI' in c.upper()]
+
+    if detected_bill and detected_limit:
+        bill_cols = detected_bill[:6]  # take up to 6 if more detected
+        limit_col = detected_limit
+        util_col_names = detected_util if detected_util else []
+    else:
+        # Fall back to positional assumptions used elsewhere in the project
+        # Typical ordering (after scaling, before one-hot): limit_col at idx 0,
+        # utilization cols at 6-11, bill amt cols at 12-17. Guard for small feature sets.
+        if n_features >= 18:
+            limit_col = cols[0]
+            util_col_names = cols[6:12]
+            bill_cols = cols[12:18]
+        elif n_features >= 7:
+            limit_col = cols[0]
+            # assume last 6 are bill amounts
+            bill_cols = cols[-6:]
+            # util columns: the 6 columns prior to the bills if available, else a best-effort slice
+            if n_features >= 12:
+                util_col_names = cols[-12:-6]
+            else:
+                util_col_names = cols[1:1+min(6, n_features-1)]
+        else:
+            # extremely small feature set: treat everything as bill_cols fallback
+            limit_col = cols[0] if cols else None
+            bill_cols = cols.copy()
+            util_col_names = []
+
+    # Ensure unique, existing columns and consistent ordering
+    bill_cols = [c for c in bill_cols if c in cols]
+    util_col_names = [c for c in util_col_names if c in cols]
+    if limit_col not in cols:
+        limit_col = cols[0] if cols else None
+
     param_grid = {
         'n_estimators'    : [200, 300, 500],
         'max_depth'       : [10, 20, 30, None],
@@ -61,13 +104,14 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     rf_base = RandomForestClassifier(random_state=42, n_jobs=-1)
 
+    # Use exhaustive GridSearchCV for hyperparameter tuning (original behavior)
     grid_search = GridSearchCV(
-        rf_base,
-        param_grid,
-        cv=5,
-        scoring='f1',
-        n_jobs=-1,
-        verbose=1
+        estimator = rf_base,
+        param_grid = param_grid,
+        scoring = 'f1',
+        cv = 5,
+        verbose = 2,
+        n_jobs = -1
     )
 
     grid_search.fit(X_train, y_train.ravel())
@@ -201,6 +245,17 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
         return delta_p
 
+    # Helper: safe clipping bounds (removed special-case for 'UTIL_avg')
+    def _get_clip_bounds(col, X_train, util_col_names, X_mod=None):
+        # If the column exists in training data, use its range
+        if col in X_train.columns:
+            return X_train[col].min(), X_train[col].max()
+        # Fallback: use the modified data's range if present
+        if X_mod is not None and col in X_mod.columns:
+            return X_mod[col].min(), X_mod[col].max()
+        # Final fallback: generic 0-1 range
+        return 0.0, 1.0
+
     # %%
     # Intervention A: Reduce Bill Amounts
 
@@ -211,11 +266,16 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
             X_mod = X.copy()
             for col in bill_cols:
                 X_mod[col] = X_mod[col] * (1 - reduction)
-            for bill, util in zip(bill_cols, util_col_names):
-                X_mod[util] = X_mod[bill] / X_mod[limit_col].replace(0, np.nan)
-            X_mod['UTIL_avg'] = X_mod[util_col_names].mean(axis=1)
-            for col in bill_cols + util_col_names + ['UTIL_avg']:
-                X_mod[col] = X_mod[col].clip(X_train[col].min(), X_train[col].max())
+            # Recompute util columns only if we detected them
+            if util_col_names:
+                for bill, util in zip(bill_cols, util_col_names):
+                    # avoid division by zero by replacing 0 with NaN on denominator
+                    X_mod[util] = X_mod[bill] / X_mod[limit_col].replace(0, np.nan)
+
+            # Clip each column using safe bounds (no UTIL_avg)
+            for col in bill_cols + util_col_names:
+                minv, maxv = _get_clip_bounds(col, X_train, util_col_names, X_mod)
+                X_mod[col] = X_mod[col].clip(minv, maxv)
             return X_mod
 
         delta = run_intervention(
@@ -233,11 +293,13 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         def intervention_B(X, increase=pct):
             X_mod = X.copy()
             X_mod[limit_col] = X_mod[limit_col] * (1 + increase)
-            for bill, util in zip(bill_cols, util_col_names):
-                X_mod[util] = X_mod[bill] / X_mod[limit_col].replace(0, np.nan)
-            X_mod['UTIL_avg'] = X_mod[util_col_names].mean(axis=1)
-            for col in [limit_col] + util_col_names + ['UTIL_avg']:
-                X_mod[col] = X_mod[col].clip(X_train[col].min(), X_train[col].max())
+            if util_col_names:
+                for bill, util in zip(bill_cols, util_col_names):
+                    X_mod[util] = X_mod[bill] / X_mod[limit_col].replace(0, np.nan)
+
+            for col in [limit_col] + util_col_names:
+                minv, maxv = _get_clip_bounds(col, X_train, util_col_names, X_mod)
+                X_mod[col] = X_mod[col].clip(minv, maxv)
             return X_mod
 
         delta = run_intervention(
@@ -257,11 +319,13 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
             X_mod[limit_col] = X_mod[limit_col] * (1 + increase)
             for col in bill_cols:
                 X_mod[col] = X_mod[col] * (1 + increase)
-            for bill, util in zip(bill_cols, util_col_names):
-                X_mod[util] = X_mod[bill] / X_mod[limit_col].replace(0, np.nan)
-            X_mod['UTIL_avg'] = X_mod[util_col_names].mean(axis=1)
-            for col in [limit_col] + bill_cols + util_col_names + ['UTIL_avg']:
-                X_mod[col] = X_mod[col].clip(X_train[col].min(), X_train[col].max())
+            if util_col_names:
+                for bill, util in zip(bill_cols, util_col_names):
+                    X_mod[util] = X_mod[bill] / X_mod[limit_col].replace(0, np.nan)
+
+            for col in [limit_col] + bill_cols + util_col_names:
+                minv, maxv = _get_clip_bounds(col, X_train, util_col_names, X_mod)
+                X_mod[col] = X_mod[col].clip(minv, maxv)
             return X_mod
 
         delta = run_intervention(
@@ -319,21 +383,23 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
             X_mod = X.copy()
             for col in bill_cols:
                 X_mod[col] = X_mod[col] * 0.75
-            for bill, util in zip(bill_cols, util_col_names):
-                X_mod[util] = X_mod[bill] / X_mod[limit_col].replace(0, np.nan)
-            X_mod['UTIL_avg'] = X_mod[util_col_names].mean(axis=1)
-            for col in bill_cols + util_col_names + ['UTIL_avg']:
-                X_mod[col] = X_mod[col].clip(X_train[col].min(), X_train[col].max())
+            if util_col_names:
+                for bill, util in zip(bill_cols, util_col_names):
+                    X_mod[util] = X_mod[bill] / X_mod[limit_col].replace(0, np.nan)
+            for col in bill_cols + util_col_names:
+                minv, maxv = _get_clip_bounds(col, X_train, util_col_names, X_mod)
+                X_mod[col] = X_mod[col].clip(minv, maxv)
             return X_mod
 
         def int_B_seg(X):
             X_mod = X.copy()
             X_mod[limit_col] = X_mod[limit_col] * 1.25
-            for bill, util in zip(bill_cols, util_col_names):
-                X_mod[util] = X_mod[bill] / X_mod[limit_col].replace(0, np.nan)
-            X_mod['UTIL_avg'] = X_mod[util_col_names].mean(axis=1)
-            for col in [limit_col] + util_col_names + ['UTIL_avg']:
-                X_mod[col] = X_mod[col].clip(X_train[col].min(), X_train[col].max())
+            if util_col_names:
+                for bill, util in zip(bill_cols, util_col_names):
+                    X_mod[util] = X_mod[bill] / X_mod[limit_col].replace(0, np.nan)
+            for col in [limit_col] + util_col_names:
+                minv, maxv = _get_clip_bounds(col, X_train, util_col_names, X_mod)
+                X_mod[col] = X_mod[col].clip(minv, maxv)
             return X_mod
 
         dA = run_intervention(rf_model, X_group, int_A_seg,
