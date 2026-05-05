@@ -56,7 +56,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         'kernel': ['rbf', 'poly']
     }
 
-    svm = SVC(probability=True, random_state=42)
+    svm = SVC(probability=True, random_state=seed)
 
     random_search = RandomizedSearchCV(
         estimator           = svm,
