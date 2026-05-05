@@ -46,6 +46,7 @@ class Net(nn.Module):
 def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     random.seed(seed)
+    np.random.seed(seed)
 
     model = Net()
 
