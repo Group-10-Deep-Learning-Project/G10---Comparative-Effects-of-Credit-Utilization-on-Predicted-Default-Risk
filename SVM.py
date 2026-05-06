@@ -57,6 +57,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     X_train = _to_df(X_train)
     X_test  = _to_df(X_test)
+    X_val   = _to_df(X_val)
 
     # ── Hyperparameter tuning on train split ─────────────────
     param_dist = {
