@@ -30,7 +30,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
       - Tunes hyperparameters with RandomizedSearchCV on train
       - Selects best threshold using precision_recall_curve on val
       - Evaluates final model on test set
-      - Returns metrics dict
+      - Returns (model, X_train_df, X_test_df, y_train, y_test)
 
     Parameters
     ----------
@@ -39,8 +39,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     Returns
     -------
-    dict with keys: accuracy, precision, recall, f1, roc_auc,
-                    brier, best_threshold
+    tuple: best_svm, X_train_df, X_test_df, y_train, y_test
     """
 
     X_val, y_val, X_train, y_train, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
@@ -49,11 +48,21 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     y_train = np.array(y_train).ravel()
     y_test  = np.array(y_test).ravel()
 
+    # ── Convert X to DataFrames ───────────────────────────────
+    def _to_df(X):
+        if hasattr(X, 'columns'):
+            return X
+        X_arr = np.asarray(X)
+        return pd.DataFrame(X_arr, columns=[f"Feature_{i}" for i in range(X_arr.shape[1])])
+
+    X_train = _to_df(X_train)
+    X_test  = _to_df(X_test)
+
     # ── Hyperparameter tuning on train split ─────────────────
     param_dist = {
         'C'     : loguniform(0.01, 100),
         'gamma' : loguniform(0.0001, 1),
-        'kernel': ['rbf', 'poly']
+        'kernel': ['rbf']               # poly removed — causes worker crashes
     }
 
     svm = SVC(probability=True, random_state=seed)
@@ -96,24 +105,4 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     print(f"[SVM] Test AUC : {roc_auc_score(y_test, y_test_prob):.4f}")
     print(f"[SVM] Test F1  : {f1_score(y_test, y_test_pred):.4f}")
 
-    return {
-        "accuracy"       : accuracy_score(y_test, y_test_pred),
-        "precision"      : precision_score(y_test, y_test_pred),
-        "recall"         : recall_score(y_test, y_test_pred),
-        "f1"             : f1_score(y_test, y_test_pred),
-        "roc_auc"        : roc_auc_score(y_test, y_test_prob),
-        "brier"          : brier_score_loss(y_test, y_test_prob),
-        "best_threshold" : best_threshold
-    }
-
-    # Add return of estimator and dataframes for counterfactual usage
-    import pandas as _pd
-    try:
-        X_train_df = _pd.DataFrame(X_train)
-        X_test_df = _pd.DataFrame(X_test)
-    except Exception:
-        X_train_df = X_train
-        X_test_df = X_test
-
-    # Return best_svm for reuse (estimator, X_train_df, X_test_df, y_train, y_test)
-    return best_svm, X_train_df, X_test_df, y_train, y_test
+    return best_svm, X_train, X_test, y_train, y_test

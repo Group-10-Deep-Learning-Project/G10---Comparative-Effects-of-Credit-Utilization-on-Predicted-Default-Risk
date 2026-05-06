@@ -5,6 +5,7 @@ from XGBoost import run_Model as run_xgb
 from MLP import run_Model as run_mlp
 import Preprocessing
 import counterfactual
+import torch
 
 #Set seeds for testing
 seeds = [42,123,456]
@@ -26,9 +27,21 @@ for seed in seeds:
     except Exception as e:
         print(f'LR training failed or skipped: {e}')
 
-    # Support Vector Machine (SVM)
+    # Support Vector Machine (SVM) — capture return for counterfactuals
     try:
-        run_svm(seed, x_v, y_v, x_train, y_train, x_test, y_test)
+        svm_model, X_tr_svm, X_te_svm, y_tr_svm, y_te_svm = run_svm(
+            seed, x_v, y_v, x_train, y_train, x_test, y_test
+        )
+        models_results.append({
+            'name'    : 'SVM',
+            'seed'    : seed,
+            'model'   : svm_model,
+            'X_train' : X_tr_svm,
+            'X_test'  : X_te_svm,
+            'y_train' : y_tr_svm,
+            'y_test'  : y_te_svm,
+            'is_torch': False,
+        })
     except Exception as e:
         print(f'SVM training failed or skipped: {e}')
 
@@ -38,12 +51,14 @@ for seed in seeds:
             seed, x_v, y_v, x_train, y_train, x_test, y_test
         )
         models_results.append({
-            'name'   : 'XGBoost',
-            'model'  : xgb_model,
-            'X_train': X_tr_xgb,
-            'X_test' : X_te_xgb,
-            'y_train': y_tr_xgb,
-            'y_test' : y_te_xgb,
+            'name'    : 'XGBoost',
+            'seed'    : seed,
+            'model'   : xgb_model,
+            'X_train' : X_tr_xgb,
+            'X_test'  : X_te_xgb,
+            'y_train' : y_tr_xgb,
+            'y_test'  : y_te_xgb,
+            'is_torch': False,
         })
     except Exception as e:
         print(f'XGBoost training failed or skipped: {e}')
@@ -55,15 +70,35 @@ for seed in seeds:
             seed, x_v, y_v, x_train, y_train, x_test, y_test
         )
         models_results.append({
-            'name'   : 'RandomForest',
-            'model'  : rf_model,
-            'X_train': X_tr_rf,
-            'X_test' : X_te_rf,
-            'y_train': y_tr_rf,
-            'y_test' : y_te_rf,
+            'name'    : 'RandomForest',
+            'seed'    : seed,
+            'model'   : rf_model,
+            'X_train' : X_tr_rf,
+            'X_test'  : X_te_rf,
+            'y_train' : y_tr_rf,
+            'y_test'  : y_te_rf,
+            'is_torch': False,
         })
     except Exception as e:
         print(f'RF training failed or skipped: {e}')
+
+    # MLP — capture return for counterfactuals
+    try:
+        mlp_model, x_tr_mlp, x_te_mlp, y_tr_mlp, y_te_mlp = run_mlp(
+            seed, x_v, y_v, x_train, y_train, x_test, y_test
+        )
+        models_results.append({
+            'name'    : 'MLP',
+            'seed'    : seed,
+            'model'   : mlp_model,
+            'X_train' : x_tr_mlp,
+            'X_test'  : x_te_mlp,
+            'y_train' : y_tr_mlp,
+            'y_test'  : y_te_mlp,
+            'is_torch': True,
+        })
+    except Exception as e:
+        print(f'MLP training failed or skipped: {e}')
 
     print("\n")
 
@@ -108,38 +143,76 @@ def _derive_feature_mapping(X_train_df):
     return bill_cols, util_col_names, limit_col
 
 
-for info in models_results:
-    name  = info['name']
-    model = info['model']
-    X_tr  = info['X_train']
-    X_te  = info['X_test']
-    y_tr  = info.get('y_train', None)
-    y_te  = info.get('y_test',  None)
+def _get_probs(model, X, is_torch=False):
+    """Get predicted probabilities from either a sklearn or PyTorch model."""
+    if is_torch:
+        model.eval()
+        with torch.no_grad():
+            if not isinstance(X, torch.Tensor):
+                X = torch.tensor(_np.asarray(X), dtype=torch.float32)
+            probs = torch.sigmoid(model(X)).cpu().numpy().flatten()
+        return probs
+    else:
+        return model.predict_proba(X)[:, 1]
 
-    # Ensure DataFrames
+
+for info in models_results:
+    name       = info['name']
+    model      = info['model']
+    X_tr       = info['X_train']
+    X_te       = info['X_test']
+    y_tr       = info.get('y_train', None)
+    y_te       = info.get('y_test',  None)
+    entry_seed = info['seed']
+    is_torch   = info.get('is_torch', False)
+
+    # Convert to DataFrames for counterfactual.py
     try:
-        if not hasattr(X_tr, 'columns'):
-            X_tr = pd.DataFrame(_np.asarray(X_tr), columns=[f"Feature_{i}" for i in range(_np.asarray(X_tr).shape[1])])
-        if not hasattr(X_te, 'columns'):
-            X_te = pd.DataFrame(_np.asarray(X_te), columns=[f"Feature_{i}" for i in range(_np.asarray(X_te).shape[1])])
+        if is_torch:
+            X_tr_cf = pd.DataFrame(_np.asarray(X_tr), columns=[f"Feature_{i}" for i in range(_np.asarray(X_tr).shape[1])])
+            X_te_cf = pd.DataFrame(_np.asarray(X_te), columns=[f"Feature_{i}" for i in range(_np.asarray(X_te).shape[1])])
+        else:
+            if not hasattr(X_tr, 'columns'):
+                X_tr_cf = pd.DataFrame(_np.asarray(X_tr), columns=[f"Feature_{i}" for i in range(_np.asarray(X_tr).shape[1])])
+            else:
+                X_tr_cf = X_tr
+            if not hasattr(X_te, 'columns'):
+                X_te_cf = pd.DataFrame(_np.asarray(X_te), columns=[f"Feature_{i}" for i in range(_np.asarray(X_te).shape[1])])
+            else:
+                X_te_cf = X_te
     except Exception:
         print(f"Skipping {name} due to invalid feature matrices")
         continue
 
-    bill_cols, util_col_names, limit_col = _derive_feature_mapping(X_tr)
+    bill_cols, util_col_names, limit_col = _derive_feature_mapping(X_tr_cf)
+
+    # Wrap MLP in a sklearn-compatible interface for counterfactual.py
+    if is_torch:
+        class TorchWrapper:
+            def __init__(self, torch_model):
+                self._model = torch_model
+            def predict_proba(self, X):
+                self._model.eval()
+                with torch.no_grad():
+                    X_t = torch.tensor(_np.asarray(X), dtype=torch.float32)
+                    probs = torch.sigmoid(self._model(X_t)).cpu().numpy().flatten()
+                return _np.column_stack([1 - probs, probs])
+        model_cf = TorchWrapper(model)
+    else:
+        model_cf = model
 
     print(f"Running counterfactual for {name}...")
     try:
         cf_results = counterfactual.run_counterfactual_and_tests(
-            model, X_te, X_tr, bill_cols, util_col_names, limit_col
+            model_cf, X_te_cf, X_tr_cf, bill_cols, util_col_names, limit_col
         )
     except Exception as e:
         print(f"Counterfactual failed for {name}: {e}")
         continue
 
-    # Compute F1 / AUC if possible
+    # Compute F1 / AUC
     try:
-        probs = model.predict_proba(X_te)[:, 1]
+        probs    = _get_probs(model, X_te, is_torch=is_torch)
         y_te_arr = _np.asarray(y_te).ravel()
         f1  = f1_score(y_te_arr, (probs >= 0.5).astype(int))
         auc = roc_auc_score(y_te_arr, probs)
@@ -150,7 +223,7 @@ for info in models_results:
     for lvl, r in cf_results.items():
         results_rows.append({
             'model'             : name,
-            'seed'              : seed,
+            'seed'              : entry_seed,
             'intervention_level': int(lvl * 100),
             'mean_A'            : float(r['mean_A']),
             'mean_B'            : float(r['mean_B']),

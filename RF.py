@@ -95,10 +95,10 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         limit_col = cols[0] if cols else None
 
     param_grid = {
-        'n_estimators'    : [200, 300, 500],
-        'max_depth'       : [10, 20, 30, None],
-        'min_samples_split': [2, 5],
-        'min_samples_leaf': [1, 2, 4],
+        'n_estimators'    : [200],
+        'max_depth'       : [5],
+        'min_samples_split': [2],
+        'min_samples_leaf': [1],
         'max_features'    : ['sqrt', 'log2'],
         'class_weight'    : ['balanced', {0: 1, 1: 3}]
     }
@@ -137,7 +137,6 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     # %%
     # Threshold Tuning on Validation Set
-
 
     y_val_prob_thresh = rf_model.predict_proba(X_val)[:, 1]
 
@@ -227,7 +226,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     else:
         shap_explanation_class1 = shap_explanation
 
-    shap.plots.bar(shap_explanation_class1,     max_display=20, show=True)
+    shap.plots.bar(shap_explanation_class1,      max_display=20, show=True)
     shap.plots.beeswarm(shap_explanation_class1, max_display=20, show=True)
 
     # %%
@@ -437,7 +436,10 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     plt.savefig('RF_segmentation_bar.png', dpi=150)
     plt.show()
 
+    # Save trained RF model so counterfactual figures can be regenerated without retraining
+    from joblib import dump
+    dump(rf_model, f'rf_model_seed{seed}.joblib')
+    print(f"RF model saved to rf_model_seed{seed}.joblib")
+
     # Return the trained model and DataFrames for downstream analysis
     return rf_model, X_train, X_test, y_train, y_test
-
-
