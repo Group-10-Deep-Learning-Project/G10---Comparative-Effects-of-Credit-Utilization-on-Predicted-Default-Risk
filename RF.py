@@ -95,10 +95,10 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         limit_col = cols[0] if cols else None
 
     param_grid = {
-        'n_estimators'    : [200],
-        'max_depth'       : [5],
-        'min_samples_split': [2],
-        'min_samples_leaf': [1],
+        'n_estimators'    : [200, 300],
+        'max_depth'       : [5, 10],
+        'min_samples_split': [2, 5],
+        'min_samples_leaf': [1, 2],
         'max_features'    : ['sqrt', 'log2'],
         'class_weight'    : ['balanced', {0: 1, 1: 3}]
     }
