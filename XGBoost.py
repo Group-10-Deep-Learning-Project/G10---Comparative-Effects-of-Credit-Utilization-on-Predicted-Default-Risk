@@ -266,6 +266,11 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     print(f"  Test F1        : {f1_score(y_test, y_test_pred_opt):.4f}")
     print(f"  Brier Score    : {brier_score_loss(y_test, y_test_prob):.4f}")
 
+    # Save trained XGBoost model so counterfactual figures can be regenerated without retraining
+    from joblib import dump
+    dump(best_model, f'xgb_model_seed{seed}.joblib')
+    print(f"XGBoost model saved to xgb_model_seed{seed}.joblib")
+
     # Return the trained model and dataframes for downstream analysis
     return best_model, X_train, X_test, y_train, y_test
 
