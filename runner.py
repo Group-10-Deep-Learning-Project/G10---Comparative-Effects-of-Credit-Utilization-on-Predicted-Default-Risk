@@ -8,7 +8,7 @@ import counterfactual
 import torch
 
 #Set seeds for testing
-seeds = [42,123,456]
+seeds = [42, 123,456]
 
 # Collect trained models/data for CF
 models_results = []
@@ -27,7 +27,7 @@ for seed in seeds:
     except Exception as e:
         print(f'LR training failed or skipped: {e}')
 
-    # Support Vector Machine (SVM) — capture return for counterfactuals
+    #Support Vector Machine (SVM) — temporarily disabled
     try:
         svm_model, X_tr_svm, X_te_svm, y_tr_svm, y_te_svm = run_svm(
             seed, x_v, y_v, x_train, y_train, x_test, y_test
