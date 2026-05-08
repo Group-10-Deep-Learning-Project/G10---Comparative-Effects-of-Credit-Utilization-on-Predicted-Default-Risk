@@ -7,8 +7,8 @@ import Preprocessing
 import counterfactual
 import torch
 
-#Set seeds for testing
-seeds = [42, 123,456]
+# Set seeds for testing
+seeds = [42, 123, 456]
 
 # Collect trained models/data for CF
 models_results = []
@@ -16,7 +16,7 @@ models_results = []
 ### Preprocessing & Model Running
 for seed in seeds:
 
-    #Preprocessing
+    # Preprocessing
     x_v, y_v, x_train, y_train, x_test, y_test = Preprocessing.valuesWithSeed(seed)
 
     print(f"Seed Number:{seed}")
@@ -27,7 +27,7 @@ for seed in seeds:
     except Exception as e:
         print(f'LR training failed or skipped: {e}')
 
-    #Support Vector Machine (SVM) — temporarily disabled
+    # Support Vector Machine (SVM)
     try:
         svm_model, X_tr_svm, X_te_svm, y_tr_svm, y_te_svm = run_svm(
             seed, x_v, y_v, x_train, y_train, x_test, y_test
@@ -45,7 +45,7 @@ for seed in seeds:
     except Exception as e:
         print(f'SVM training failed or skipped: {e}')
 
-    # XGBoost — capture return for counterfactuals
+    # XGBoost
     try:
         xgb_model, X_tr_xgb, X_te_xgb, y_tr_xgb, y_te_xgb = run_xgb(
             seed, x_v, y_v, x_train, y_train, x_test, y_test
@@ -63,7 +63,7 @@ for seed in seeds:
     except Exception as e:
         print(f'XGBoost training failed or skipped: {e}')
 
-    # Random Forest — capture return for counterfactuals
+    # Random Forest
     print(f"Random Forest Model - Seed {seed}")
     try:
         rf_model, X_tr_rf, X_te_rf, y_tr_rf, y_te_rf = run_rf(
@@ -82,7 +82,7 @@ for seed in seeds:
     except Exception as e:
         print(f'RF training failed or skipped: {e}')
 
-    # MLP — capture return for counterfactuals
+    # MLP
     try:
         mlp_model, x_tr_mlp, x_te_mlp, y_tr_mlp, y_te_mlp = run_mlp(
             seed, x_v, y_v, x_train, y_train, x_test, y_test
@@ -106,9 +106,11 @@ for seed in seeds:
 import pandas as pd
 import numpy as _np
 import os
-from sklearn.metrics import f1_score, roc_auc_score
+from sklearn.metrics import f1_score, roc_auc_score, brier_score_loss
 
-results_rows = []
+cf_rows  = []   # one row per model x seed x intervention level
+seg_rows = []   # one row per model x seed x risk group
+
 
 def _derive_feature_mapping(X_train_df):
     cols = X_train_df.columns.tolist()
@@ -144,7 +146,6 @@ def _derive_feature_mapping(X_train_df):
 
 
 def _get_probs(model, X, is_torch=False):
-    """Get predicted probabilities from either a sklearn or PyTorch model."""
     if is_torch:
         model.eval()
         with torch.no_grad():
@@ -161,32 +162,25 @@ for info in models_results:
     model      = info['model']
     X_tr       = info['X_train']
     X_te       = info['X_test']
-    y_tr       = info.get('y_train', None)
-    y_te       = info.get('y_test',  None)
+    y_te       = info.get('y_test', None)
     entry_seed = info['seed']
     is_torch   = info.get('is_torch', False)
 
-    # Convert to DataFrames for counterfactual.py
+    # Convert to DataFrames
     try:
         if is_torch:
             X_tr_cf = pd.DataFrame(_np.asarray(X_tr), columns=[f"Feature_{i}" for i in range(_np.asarray(X_tr).shape[1])])
             X_te_cf = pd.DataFrame(_np.asarray(X_te), columns=[f"Feature_{i}" for i in range(_np.asarray(X_te).shape[1])])
         else:
-            if not hasattr(X_tr, 'columns'):
-                X_tr_cf = pd.DataFrame(_np.asarray(X_tr), columns=[f"Feature_{i}" for i in range(_np.asarray(X_tr).shape[1])])
-            else:
-                X_tr_cf = X_tr
-            if not hasattr(X_te, 'columns'):
-                X_te_cf = pd.DataFrame(_np.asarray(X_te), columns=[f"Feature_{i}" for i in range(_np.asarray(X_te).shape[1])])
-            else:
-                X_te_cf = X_te
+            X_tr_cf = X_tr if hasattr(X_tr, 'columns') else pd.DataFrame(_np.asarray(X_tr), columns=[f"Feature_{i}" for i in range(_np.asarray(X_tr).shape[1])])
+            X_te_cf = X_te if hasattr(X_te, 'columns') else pd.DataFrame(_np.asarray(X_te), columns=[f"Feature_{i}" for i in range(_np.asarray(X_te).shape[1])])
     except Exception:
-        print(f"Skipping {name} due to invalid feature matrices")
+        print(f"Skipping {name} (seed {entry_seed}) due to invalid feature matrices")
         continue
 
     bill_cols, util_col_names, limit_col = _derive_feature_mapping(X_tr_cf)
 
-    # Wrap MLP in a sklearn-compatible interface for counterfactual.py
+    # Wrap MLP for sklearn-compatible interface
     if is_torch:
         class TorchWrapper:
             def __init__(self, torch_model):
@@ -201,43 +195,80 @@ for info in models_results:
     else:
         model_cf = model
 
-    print(f"Running counterfactual for {name}...")
+    print(f"\nRunning counterfactual for {name} (seed {entry_seed})...")
     try:
-        cf_results = counterfactual.run_counterfactual_and_tests(
+        cf_results, seg_results = counterfactual.run_counterfactual_and_tests(
             model_cf, X_te_cf, X_tr_cf, bill_cols, util_col_names, limit_col
         )
     except Exception as e:
-        print(f"Counterfactual failed for {name}: {e}")
+        print(f"Counterfactual failed for {name} (seed {entry_seed}): {e}")
         continue
 
-    # Compute F1 / AUC
+    # Compute F1 / AUC / Brier at default 0.5 threshold
     try:
-        probs    = _get_probs(model, X_te, is_torch=is_torch)
-        y_te_arr = _np.asarray(y_te).ravel()
-        f1  = f1_score(y_te_arr, (probs >= 0.5).astype(int))
-        auc = roc_auc_score(y_te_arr, probs)
+        probs     = _get_probs(model, X_te, is_torch=is_torch)
+        y_te_arr  = _np.asarray(y_te).ravel()
+        f1_val    = f1_score(y_te_arr, (probs >= 0.5).astype(int))
+        auc_val   = roc_auc_score(y_te_arr, probs)
+        brier_val = brier_score_loss(y_te_arr, probs)
     except Exception:
-        f1 = None
-        auc = None
+        f1_val    = None
+        auc_val   = None
+        brier_val = None
 
+    # ── Save counterfactual rows (one per level) ──────────────────────
     for lvl, r in cf_results.items():
-        results_rows.append({
+        cf_rows.append({
             'model'             : name,
             'seed'              : entry_seed,
             'intervention_level': int(lvl * 100),
             'mean_A'            : float(r['mean_A']),
             'mean_B'            : float(r['mean_B']),
+            'mean_C'            : float(r['mean_C']),
             'mean_abs_A'        : float(r['mean_abs_A']),
             'mean_abs_B'        : float(r['mean_abs_B']),
-            'wilcoxon_p'        : float(r['wilcoxon_p']) if r['wilcoxon_p'] is not None else None,
-            'f1'                : f1,
-            'auc'               : auc,
-            'notes'             : None,
+            'mean_abs_C'        : float(r['mean_abs_C']),
+            'n_reduced_A'       : r['n_reduced_A'],
+            'n_reduced_B'       : r['n_reduced_B'],
+            'n_reduced_C'       : r['n_reduced_C'],
+            'n_total'           : r['n_total'],
+            'wilcoxon_p_AB'     : r['wilcoxon_p_AB'],
+            'wilcoxon_p_AC'     : r['wilcoxon_p_AC'],
+            'wilcoxon_p_BC'     : r['wilcoxon_p_BC'],
+            'f1'                : f1_val,
+            'auc'               : auc_val,
+            'brier'             : brier_val,
         })
 
-os.makedirs('results', exist_ok=True)
-df_results = pd.DataFrame(results_rows)
-df_results.to_csv('results/counterfactual_summary.csv', index=False)
+    # ── Save segmentation rows (one per risk group) ───────────────────
+    for group, sr in seg_results.items():
+        seg_rows.append({
+            'model'         : name,
+            'seed'          : entry_seed,
+            'risk_group'    : group,
+            'n'             : sr['n'],
+            'mean_A'        : sr['mean_A'],
+            'mean_B'        : sr['mean_B'],
+            'mean_abs_A'    : sr['mean_abs_A'],
+            'mean_abs_B'    : sr['mean_abs_B'],
+            'wilcoxon_p_AB' : sr['wilcoxon_p_AB'],
+            'f1'            : f1_val,
+            'auc'           : auc_val,
+            'brier'         : brier_val,
+        })
 
-print(f"\nSaved {len(df_results)} rows to results/counterfactual_summary.csv")
-print(df_results.to_string(index=False))
+# ── Save both CSVs ────────────────────────────────────────────────────
+os.makedirs('results', exist_ok=True)
+
+df_cf  = pd.DataFrame(cf_rows)
+df_seg = pd.DataFrame(seg_rows)
+
+df_cf.to_csv('results/counterfactual_summary.csv',  index=False)
+df_seg.to_csv('results/segmentation_summary.csv',   index=False)
+
+print(f"\nSaved {len(df_cf)} rows  -> results/counterfactual_summary.csv")
+print(f"Saved {len(df_seg)} rows  -> results/segmentation_summary.csv")
+print("\n=== COUNTERFACTUAL SUMMARY ===")
+print(df_cf.to_string(index=False))
+print("\n=== SEGMENTATION SUMMARY ===")
+print(df_seg.to_string(index=False))

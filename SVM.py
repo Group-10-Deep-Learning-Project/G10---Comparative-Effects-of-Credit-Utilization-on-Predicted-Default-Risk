@@ -44,11 +44,11 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     X_val, y_val, X_train, y_train, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
 
-    # ── Flatten y in case runner passes column vectors ───────
+    # Flatten y in case runner passes column vectors 
     y_train = np.array(y_train).ravel()
     y_test  = np.array(y_test).ravel()
 
-    # ── Convert X to DataFrames ───────────────────────────────
+    # Convert X to DataFrames 
     def _to_df(X):
         if hasattr(X, 'columns'):
             return X
@@ -59,7 +59,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     X_test  = _to_df(X_test)
     X_val   = _to_df(X_val)
 
-    # ── Hyperparameter tuning on train split ─────────────────
+    # Hyperparameter tuning on train split 
     param_dist = {
         'C'     : loguniform(0.01, 100),
         'gamma' : loguniform(0.0001, 1),
@@ -85,7 +85,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     print(f"[SVM] Best params : {random_search.best_params_}")
     print(f"[SVM] Best CV F1  : {random_search.best_score_:.4f}")
 
-    # ── Threshold tuning on validation set ───────────────────
+    # Threshold tuning on validation set 
     y_val_prob = best_svm.predict_proba(X_val)[:, 1]
 
     precisions, recalls, thresholds = precision_recall_curve(y_val, y_val_prob)
@@ -96,14 +96,18 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     print(f"[SVM] Best threshold (val F1): {best_threshold:.4f} "
           f"| Val F1: {f1_curve[best_thresh_idx]:.4f}")
 
-    # ── Refit on full train set with best params ─────────────
+    # Refit on full train set with best params
     best_svm.fit(X_train, y_train)
 
-    # ── Final evaluation on test set ─────────────────────────
+    # Final evaluation on test set 
     y_test_prob = best_svm.predict_proba(X_test)[:, 1]
     y_test_pred = (y_test_prob >= best_threshold).astype(int)
 
-    print(f"[SVM] Test AUC : {roc_auc_score(y_test, y_test_prob):.4f}")
-    print(f"[SVM] Test F1  : {f1_score(y_test, y_test_pred):.4f}")
+    print(f"[SVM] Test AUC       : {roc_auc_score(y_test, y_test_prob):.4f}")
+    print(f"[SVM] Test F1        : {f1_score(y_test, y_test_pred):.4f}")
+    print(f"[SVM] Test Accuracy  : {accuracy_score(y_test, y_test_pred):.4f}")
+    print(f"[SVM] Test Precision : {precision_score(y_test, y_test_pred):.4f}")
+    print(f"[SVM] Test Recall    : {recall_score(y_test, y_test_pred):.4f}")
+    print(f"[SVM] Test Brier     : {brier_score_loss(y_test, y_test_prob):.4f}")
 
     return best_svm, X_train, X_test, y_train, y_test
