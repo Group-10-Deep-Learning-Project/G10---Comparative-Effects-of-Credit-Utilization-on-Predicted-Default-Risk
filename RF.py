@@ -25,7 +25,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     X_val, y_val, X_train, y_train, X_test, y_test = x_v, y_v, x_train, y_train, x_test, y_test
 
-    # Coerce y to numpy 1D arrays and X to pandas DataFrames (handle torch tensors)
+    # Coerce y to numpy 1D arrays and X to pandas DataFrames for consistent processing
     import numpy as _np
     import pandas as _pd
     try:
@@ -52,7 +52,6 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     X_val   = _to_df(X_val)
 
     # Heuristic feature mapping for counterfactuals
-    # Try to detect real column names (e.g., 'BILL_AMT1'..'BILL_AMT6', 'LIMIT_BAL', 'UTIL_avg')
     cols = X_train.columns.tolist()
     n_features = len(cols)
 
@@ -66,9 +65,8 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         limit_col = detected_limit
         util_col_names = detected_util if detected_util else []
     else:
-        # Fall back to positional assumptions used elsewhere in the project
         # Typical ordering (after scaling, before one-hot): limit_col at idx 0,
-        # utilization cols at 6-11, bill amt cols at 12-17. Guard for small feature sets.
+        # utilization cols at 6-11, bill amt cols at 12-17.
         if n_features >= 18:
             limit_col = cols[0]
             util_col_names = cols[6:12]
@@ -77,13 +75,12 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
             limit_col = cols[0]
             # assume last 6 are bill amounts
             bill_cols = cols[-6:]
-            # util columns: the 6 columns prior to the bills if available, else a best-effort slice
+            # util columns: the 6 columns prior to the bills if available otherwise the first 6 after limit_col
             if n_features >= 12:
                 util_col_names = cols[-12:-6]
             else:
                 util_col_names = cols[1:1+min(6, n_features-1)]
         else:
-            # extremely small feature set: treat everything as bill_cols fallback
             limit_col = cols[0] if cols else None
             bill_cols = cols.copy()
             util_col_names = []
@@ -105,7 +102,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     rf_base = RandomForestClassifier(random_state=seed, n_jobs=-1)
 
-    # Use exhaustive GridSearchCV for hyperparameter tuning (original behavior)
+    # Use exhaustive GridSearchCV for hyperparameter tuning
     grid_search = GridSearchCV(
         estimator = rf_base,
         param_grid = param_grid,
@@ -360,7 +357,7 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
 
     # %%
     # Client Segmentation Analysis
-    # Added grouped bar chart per reviewer feedback so the risk-group reversal is visually prominent
+    # Added grouped bar chart per feedback so the risk-group reversal is visually seen more clearly
 
     baseline_probs = rf_model.predict_proba(X_test)[:, 1]
 

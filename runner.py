@@ -216,7 +216,7 @@ for info in models_results:
         auc_val   = None
         brier_val = None
 
-    # ── Save counterfactual rows (one per level) ──────────────────────
+    # Save counterfactual rows (one per level)
     for lvl, r in cf_results.items():
         cf_rows.append({
             'model'             : name,
@@ -240,7 +240,7 @@ for info in models_results:
             'brier'             : brier_val,
         })
 
-    # ── Save segmentation rows (one per risk group) ───────────────────
+    # Save segmentation rows (one per risk group)
     for group, sr in seg_results.items():
         seg_rows.append({
             'model'         : name,
@@ -257,7 +257,7 @@ for info in models_results:
             'brier'         : brier_val,
         })
 
-# ── Save both CSVs ────────────────────────────────────────────────────
+# Save both CSVs
 os.makedirs('results', exist_ok=True)
 
 df_cf  = pd.DataFrame(cf_rows)

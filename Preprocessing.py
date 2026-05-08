@@ -29,7 +29,7 @@ def valuesWithSeed(seed):
     X_num = X[num_cols].values   # numeric block — to be scaled
     X_cat = X[cat_cols].values   # categorical block — to be one-hot encoded
 
-    # Fit OHE on full dataset (vocabulary only, no target leakage) ──
+    # Fit OHE on full dataset, transform vocab only, so no target leakage
     cate = OneHotEncoder(sparse_output=False)
     X_cat_encoded = cate.fit_transform(X_cat)
 
