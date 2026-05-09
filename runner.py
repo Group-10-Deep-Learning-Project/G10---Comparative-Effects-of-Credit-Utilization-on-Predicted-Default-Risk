@@ -1,3 +1,7 @@
+import matplotlib
+matplotlib.use('Agg')
+import warnings
+warnings.filterwarnings('ignore', message='FigureCanvasAgg is non-interactive')
 from LR import run_Model as run_lr
 from SVM import run_Model as run_svm
 from RF import run_Model as run_rf

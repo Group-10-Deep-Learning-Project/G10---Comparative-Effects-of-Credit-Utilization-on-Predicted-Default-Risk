@@ -110,4 +110,51 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     print(f"[SVM] Test Recall    : {recall_score(y_test, y_test_pred):.4f}")
     print(f"[SVM] Test Brier     : {brier_score_loss(y_test, y_test_prob):.4f}")
 
+    try:
+        feature_names_svm = X_test.columns.tolist()
+        predict_fn        = lambda X: best_svm.predict_proba(pd.DataFrame(X, columns=feature_names_svm))[:, 1]
+        X_background      = shap.sample(X_train, 50, random_state=seed).values
+        X_shap_sample_df  = X_test.sample(50, random_state=seed)
+        X_shap_sample     = X_shap_sample_df.values
+        explainer_shap    = shap.KernelExplainer(predict_fn, X_background)
+        shap_values_svm   = explainer_shap.shap_values(X_shap_sample, nsamples=50)
+
+        shap_explanation = shap.Explanation(
+            values        = shap_values_svm,
+            base_values   = np.full(len(X_shap_sample), explainer_shap.expected_value),
+            data          = X_shap_sample,
+            feature_names = feature_names_svm
+        )
+
+        shap.plots.bar(shap_explanation,      max_display=20, show=False)
+        plt.savefig(f'SVM_shap_bar_seed{seed}.png', dpi=150)
+        plt.show()
+        shap.plots.beeswarm(shap_explanation, max_display=20, show=False)
+        plt.savefig(f'SVM_shap_beeswarm_seed{seed}.png', dpi=150)
+        plt.show()
+
+    except Exception as e:
+        print(f"[SVM] SHAP failed ({e}), falling back to permutation importance")
+        from sklearn.inspection import permutation_importance
+        perm = permutation_importance(
+            best_svm, X_test, y_test,
+            n_repeats=10, random_state=seed, scoring='roc_auc'
+        )
+        perm_df = pd.DataFrame({
+            'Feature'   : X_test.columns,
+            'Importance': perm.importances_mean
+        }).sort_values('Importance', ascending=False)
+
+        print("\nTop 20 Features (Permutation Importance):")
+        print(perm_df.head(20))
+
+        top20 = perm_df.head(20).sort_values('Importance', ascending=True)
+        plt.figure(figsize=(10, 8))
+        plt.barh(top20['Feature'], top20['Importance'])
+        plt.title('Top 20 SVM Feature Importances (Permutation)')
+        plt.xlabel('Mean Decrease in AUC')
+        plt.tight_layout()
+        plt.savefig(f'SVM_permutation_importance_seed{seed}.png', dpi=150)
+        plt.show()
+
     return best_svm, X_train, X_test, y_train, y_test

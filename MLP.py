@@ -149,13 +149,17 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
                     feature_names=feature_names,
                     plot_type="bar",
                     max_display=20,
-                    show=True)
+                    show=False)
+    plt.savefig(f'MLP_shap_bar_seed{seed}.png', dpi=150)
+    plt.show()
 
     # Beeswarm plot - direction and distribution of SHAP values
     shap.summary_plot(shap_vals_np, X_test_np,
                     feature_names=feature_names,
                     max_display=20,
-                    show=True)
+                    show=False)
+    plt.savefig(f'MLP_shap_beeswarm_seed{seed}.png', dpi=150)
+    plt.show()
 
     # Rename features for readable SHAP plot
 
@@ -200,11 +204,15 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
     # Replot with names
     shap.plots.bar(shap_explanation_named,
                 max_display=20,
-                show=True)
+                show=False)
+    plt.savefig(f'MLP_shap_bar_seed{seed}.png', dpi=150)
+    plt.show()
 
     shap.plots.beeswarm(shap_explanation_named,
                         max_display=20,
-                        show=True)
+                        show=False)
+    plt.savefig(f'MLP_shap_beeswarm_seed{seed}.png', dpi=150)
+    plt.show()
 
 
     feature_names = [f"Feature_{i}" for i in range(x_train.shape[1])]
@@ -439,6 +447,9 @@ def run_Model(seed, x_v, y_v, x_train, y_train, x_test, y_test):
         
         run_intervention(model, X_group, int_B_seg,
                         f"{group_label} - Intervention B (25% limit increase)")
+
+    torch.save(model.state_dict(), f'mlp_model_seed{seed}.pt')
+    print(f"MLP model saved to mlp_model_seed{seed}.pt")
 
     # Return trained PyTorch model and tensors for external use (counterfactual without retraining)
     return model, x_train, x_test, y_train, y_test
