@@ -87,21 +87,13 @@ Five classification models were trained and evaluated using a stratified **70/20
 
 Results are reported as mean ± standard deviation across three random seeds.
 
-| Model | AUC-ROC | F1 | Accuracy |
-|---|---:|---:|---:|
-| Logistic Regression | 0.763 ± 0.012 | 0.521 ± 0.007 | 0.787 ± 0.015 |
-| SVM | 0.726 ± 0.008 | 0.489 ± 0.020 | 0.793 ± 0.009 |
-| XGBoost | 0.778 ± 0.009 | 0.536 ± 0.012 | 0.783 ± 0.008 |
-| Random Forest | 0.777 ± 0.012 | 0.537 ± 0.015 | 0.783 ± 0.010 |
-| MLP | 0.777 ± 0.012 | 0.528 ± 0.023 | 0.769 ± 0.018 |
-
-| Model | Precision | Recall |
-|---|---:|---:|
-| Logistic Regression | 0.522 ± 0.035 | 0.525 ± 0.047 |
-| SVM | 0.542 ± 0.030 | 0.450 ± 0.056 |
-| XGBoost | 0.510 ± 0.018 | 0.566 ± 0.032 |
-| Random Forest | 0.510 ± 0.020 | 0.568 ± 0.034 |
-| MLP | 0.482 ± 0.030 | 0.584 ± 0.013 |
+| Model | AUC-ROC | F1 | Accuracy | Precision | Recall |
+|---|---:|---:|---:|---:|---:|
+| Logistic Regression | 0.763 ± 0.012 | 0.521 ± 0.007 | 0.787 ± 0.015 | 0.522 ± 0.035 | 0.525 ± 0.047 |
+| SVM | 0.726 ± 0.008 | 0.489 ± 0.020 | 0.793 ± 0.009 | 0.542 ± 0.030 | 0.450 ± 0.056 |
+| XGBoost | 0.778 ± 0.009 | 0.536 ± 0.012 | 0.783 ± 0.008 | 0.510 ± 0.018 | 0.566 ± 0.032 |
+| Random Forest | 0.777 ± 0.012 | 0.537 ± 0.015 | 0.783 ± 0.010 | 0.510 ± 0.020 | 0.568 ± 0.034 |
+| MLP | 0.777 ± 0.012 | 0.528 ± 0.023 | 0.769 ± 0.018 | 0.482 ± 0.030 | 0.584 ± 0.013 |
 
 **Summary:** Random Forest, XGBoost, and MLP performed comparably across seeds. XGBoost had the highest average AUC-ROC, while Random Forest had the highest average F1 score. Random Forest was selected for the main counterfactual analysis because it performed comparably to XGBoost and MLP while supporting interpretable SHAP-based analysis.
 
@@ -127,17 +119,11 @@ Feature labels such as `Feature_X` correspond to encoded repayment-status, payme
 
 The main counterfactual analysis used the Random Forest model and measured mean absolute change in predicted default probability across the 3,000-client test set.
 
-| Intervention | 10% | 25% |
-|---|---:|---:|
-| A: Reduce Bills | 0.078 ± 0.018 | 0.077 ± 0.018 |
-| B: Increase Limit | 0.076 ± 0.016 | 0.075 ± 0.016 |
-| C: Limit Increase, Utilization Constant | 0.078 ± 0.017 | 0.080 ± 0.018 |
-
-| Intervention | 50% |
-|---|---:|
-| A: Reduce Bills | 0.073 ± 0.017 |
-| B: Increase Limit | 0.073 ± 0.016 |
-| C: Limit Increase, Utilization Constant | 0.082 ± 0.019 |
+| Intervention | 10% | 25% | 50% |
+|---|---:|---:|---:|
+| A: Reduce Bills | 0.078 ± 0.018 | 0.077 ± 0.018 | 0.073 ± 0.017 |
+| B: Increase Limit | 0.076 ± 0.016 | 0.075 ± 0.016 | 0.073 ± 0.016 |
+| C: Limit Increase, Utilization Constant | 0.078 ± 0.017 | 0.080 ± 0.018 | 0.082 ± 0.019 |
 
 **Interpretation:** Interventions A and B produced similar model-response magnitudes. Intervention C also produced comparable changes, indicating that the Random Forest model remains sensitive to raw credit-limit and bill-amount changes even when utilization is held approximately constant. Because these are absolute changes, larger values mean larger model response, not necessarily larger reductions in predicted default probability.
 
@@ -172,17 +158,29 @@ Directional changes were evaluated at the 25% intervention level for high-risk a
 
 ## Repository
 
-```
 📁 G10
-├── 📓 Project_LR.ipynb                               Logistic Regression
-├── 📓 Project_SVM.ipynb                              Support Vector Machine
-├── 📓 Random Forest - Counterfactual Analysis.ipynb  Random Forest + SHAP + Counterfactuals
-├── 📓 Xgboost.ipynb                                  XGBoost
-├── 📓 MLP.ipynb                                      Neural Network
+├── 📁 Images                                      Figures used in paper/README
+├── 📁 models                                      Saved trained model files
+│   ├── rf_model_seed42.joblib                     Random Forest model, seed 42
+│   ├── rf_model_seed123.joblib                    Random Forest model, seed 123
+│   ├── rf_model_seed456.joblib                    Random Forest model, seed 456
+│   ├── xgb_model_seed42.joblib                    XGBoost model, seed 42
+│   ├── xgb_model_seed123.joblib                   XGBoost model, seed 123
+│   └── xgb_model_seed456.joblib                   XGBoost model, seed 456
+├── 📄 README.md                                   Project overview and results summary
+├── 📄 LICENSE                                     Project license
+├── 🐍 Preprocessing.py                            Data cleaning, feature engineering, and encoding
+├── 🐍 LR.py                                       Logistic Regression model
+├── 🐍 SVM.py                                      Support Vector Machine model
+├── 🐍 RF.py                                       Random Forest model
+├── 🐍 XGBoost.py                                  XGBoost model
+├── 🐍 MLP.py                                      Multilayer Perceptron model
+├── 🐍 counterfactual.py                           Counterfactual intervention analysis
+├── 🐍 runner.py                                   Main script to run preprocessing, models, and outputs
+├── 📊 counterfactual_summary.csv                  Counterfactual intervention outputs
+├── 📊 segmentation_summary.csv                    Risk-group segmentation outputs
 ├── 📊 Working Version - default of credit card clients.xls
-├── 📊 counterfactual_summary.csv                     Counterfactual outputs
-└── 📊 segmentation_summary.csv                       Risk-group segmentation outputs
-```
+└── 📦 default+of+credit+card+clients.zip          Original/raw dataset archive
 
 ---
 
