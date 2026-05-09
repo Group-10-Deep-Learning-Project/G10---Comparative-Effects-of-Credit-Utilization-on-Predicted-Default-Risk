@@ -158,30 +158,31 @@ Directional changes were evaluated at the 25% intervention level for high-risk a
 
 ## Repository
 
-📁 G10
-├── 📁 Images                                      Figures used in paper/README
-├── 📁 models                                      Saved trained model files
-│   ├── rf_model_seed42.joblib                     Random Forest model, seed 42
-│   ├── rf_model_seed123.joblib                    Random Forest model, seed 123
-│   ├── rf_model_seed456.joblib                    Random Forest model, seed 456
-│   ├── xgb_model_seed42.joblib                    XGBoost model, seed 42
-│   ├── xgb_model_seed123.joblib                   XGBoost model, seed 123
-│   └── xgb_model_seed456.joblib                   XGBoost model, seed 456
-├── 📄 README.md                                   Project overview and results summary
-├── 📄 LICENSE                                     Project license
-├── 🐍 Preprocessing.py                            Data cleaning, feature engineering, and encoding
-├── 🐍 LR.py                                       Logistic Regression model
-├── 🐍 SVM.py                                      Support Vector Machine model
-├── 🐍 RF.py                                       Random Forest model
-├── 🐍 XGBoost.py                                  XGBoost model
-├── 🐍 MLP.py                                      Multilayer Perceptron model
-├── 🐍 counterfactual.py                           Counterfactual intervention analysis
-├── 🐍 runner.py                                   Main script to run preprocessing, models, and outputs
-├── 📊 counterfactual_summary.csv                  Counterfactual intervention outputs
-├── 📊 segmentation_summary.csv                    Risk-group segmentation outputs
-├── 📊 Working Version - default of credit card clients.xls
-└── 📦 default+of+credit+card+clients.zip          Original/raw dataset archive
-
+```
+ 📁 G10
+ ├── 📁 Images                                      Figures used in paper/README
+ ├── 📁 models                                      Saved trained model files
+ │   ├── rf_model_seed42.joblib                     Random Forest model, seed 42
+ │   ├── rf_model_seed123.joblib                    Random Forest model, seed 123
+ │   ├── rf_model_seed456.joblib                    Random Forest model, seed 456
+ │   ├── xgb_model_seed42.joblib                    XGBoost model, seed 42
+ │   ├── xgb_model_seed123.joblib                   XGBoost model, seed 123
+ │   └── xgb_model_seed456.joblib                   XGBoost model, seed 456
+ ├── 📄 README.md                                   Project overview and results summary
+ ├── 📄 LICENSE                                     Project license
+ ├── 🐍 Preprocessing.py                            Data cleaning, feature engineering, and encoding
+ ├── 🐍 LR.py                                       Logistic Regression model
+ ├── 🐍 SVM.py                                      Support Vector Machine model
+ ├── 🐍 RF.py                                       Random Forest model
+ ├── 🐍 XGBoost.py                                  XGBoost model
+ ├── 🐍 MLP.py                                      Multilayer Perceptron model
+ ├── 🐍 counterfactual.py                           Counterfactual intervention analysis
+ ├── 🐍 runner.py                                   Main script to run preprocessing, models, and outputs
+ ├── 📊 counterfactual_summary.csv                  Counterfactual intervention outputs
+ ├── 📊 segmentation_summary.csv                    Risk-group segmentation outputs
+ ├── 📊 Working Version - default of credit card clients.xls
+ └── 📦 default+of+credit+card+clients.zip          Original/raw dataset archive
+```
 ---
 
 ## Team
