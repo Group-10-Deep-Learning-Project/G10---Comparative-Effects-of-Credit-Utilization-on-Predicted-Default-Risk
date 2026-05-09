@@ -170,6 +170,7 @@ Directional changes were evaluated at the 25% intervention level for high-risk a
  │   └── xgb_model_seed456.joblib                   XGBoost model, seed 456
  ├── 📄 README.md                                   Project overview and results summary
  ├── 📄 LICENSE                                     Project license
+ ├── 📄 requirement.txt                             Required packages and versions
  ├── 🐍 Preprocessing.py                            Data cleaning, feature engineering, and encoding
  ├── 🐍 LR.py                                       Logistic Regression model
  ├── 🐍 SVM.py                                      Support Vector Machine model
